@@ -1,0 +1,7 @@
+#line 1 "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\.vscode\\arduino.json"
+{
+    "sketch": "XUL.ino",
+    "output": "build",
+    "board": "arduino:avr:leonardo",
+    "port": "COM9"
+}
