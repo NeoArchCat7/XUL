@@ -1,40 +1,40 @@
 #include <Arduino.h>
 #line 1 "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\XUL.ino"
 #include <usb_rename.h>
-#include <ArduinoJson.h>
 #include <MIDIUSB.h>
+#include <ArduinoJson.h>
+#include <EEPROM.h> // Include EEPROM library
 
-USBRename dummy = USBRename("X.U.L", "NeoArchCat7", "0001");
+USBRename usbRename = USBRename("X.U.L", "NeoArchCat7", "0001");
 
-// Configuration constants
 #define NUM_FADERS 3
-#define FADER_THRESHOLD 5
-#define DEBUG_MODE false // Set to false to disable debug prints
+#define ENABLE_DEBUG true
+#define MIDI_THRESHOLD 1 // Small threshold to prevent flickering
 
-int res = 0; // 0 - low res (7-bit); 1 - mid res (10-bit); 2 - high res (14-bit)
-uint8_t FADER_PINS[NUM_FADERS] = {A10, A9, A8};
-uint8_t CC_NUMBERS[NUM_FADERS] = {1, 2, 3};
-uint16_t lastValues[NUM_FADERS] = {0};
+uint8_t faderPins[NUM_FADERS] = {A10, A9, A8}; // Ensure correct pin assignments
+uint8_t ccNumbers[NUM_FADERS] = {1, 2, 3};
+uint8_t lastValues[NUM_FADERS] = {0};
 
-// Function prototypes
-void sendMIDI7bit(uint8_t channel, uint8_t control, uint8_t value);
-void sendMIDI10bit(uint8_t channel, uint8_t control, uint16_t value);
-void sendMIDI14bit(uint8_t channel, uint8_t control, uint16_t value);
-uint16_t applyDeadZone(uint16_t value, uint16_t maxValue);
+void sendMIDI(uint8_t channel, uint8_t control, uint8_t value);
 void debugPrint(const char *message);
+void receiveCCValuesFromWebsite();
+void saveCCValuesToEEPROM();
+void loadCCValuesFromEEPROM();
 
-#line 24 "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\XUL.ino"
+#line 22 "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\XUL.ino"
 void setup();
 #line 36 "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\XUL.ino"
 void loop();
-#line 24 "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\XUL.ino"
+#line 22 "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\XUL.ino"
 void setup()
 {
+    loadCCValuesFromEEPROM(); // Load CC values from EEPROM
+
     for (int i = 0; i < NUM_FADERS; i++)
     {
-        pinMode(FADER_PINS[i], INPUT);
+        pinMode(faderPins[i], INPUT);
     }
-    if (DEBUG_MODE)
+    if (ENABLE_DEBUG)
     {
         Serial.begin(9600);
     }
@@ -42,75 +42,102 @@ void setup()
 
 void loop()
 {
+    receiveCCValuesFromWebsite();
+
     for (int i = 0; i < NUM_FADERS; i++)
     {
-        uint16_t currentValue = analogRead(FADER_PINS[i]);
-        currentValue = applyDeadZone(currentValue, 1023);
+        uint16_t rawValue = analogRead(faderPins[i]);
 
-        if (abs(currentValue - lastValues[i]) > FADER_THRESHOLD)
+        // Map raw values (0–1023) to MIDI range (0–127)
+        uint8_t midiValue = map(rawValue, 0, 1023, 0, 127);
+
+        // Send MIDI only if the change exceeds the threshold
+        if (abs(midiValue - lastValues[i]) > MIDI_THRESHOLD)
         {
-            if (res == 0)
+            sendMIDI(0, ccNumbers[i], midiValue);
+
+            if (ENABLE_DEBUG)
             {
-                sendMIDI7bit(0, CC_NUMBERS[i], currentValue >> 3);
-            }
-            else if (res == 1)
-            {
-                sendMIDI10bit(0, CC_NUMBERS[i], currentValue);
-            }
-            else if (res == 2)
-            {
-                sendMIDI14bit(0, CC_NUMBERS[i], currentValue);
-            }
-            if (DEBUG_MODE)
-            {
-                char debugMsg[50];
-                sprintf(debugMsg, "Fader %d: Value = %d, CC = %d", i + 1, currentValue, CC_NUMBERS[i]);
+                char debugMsg[100];
+                sprintf(debugMsg, "Fader %d: Raw = %d, MIDI = %d, CC = %d",
+                        i + 1, rawValue, midiValue, ccNumbers[i]);
                 debugPrint(debugMsg);
             }
-            lastValues[i] = currentValue;
+            lastValues[i] = midiValue;
         }
     }
 }
 
-// Function definitions
 void debugPrint(const char *message)
 {
-    if (DEBUG_MODE)
+    if (ENABLE_DEBUG)
     {
         Serial.println(message);
     }
 }
 
-uint16_t applyDeadZone(uint16_t value, uint16_t maxValue)
-{
-    if (value < FADER_THRESHOLD)
-    {
-        return 0;
-    }
-    else if (value > maxValue - FADER_THRESHOLD)
-    {
-        return maxValue;
-    }
-    return value;
-}
-
-void sendMIDI7bit(uint8_t channel, uint8_t control, uint8_t value)
+void sendMIDI(uint8_t channel, uint8_t control, uint8_t value)
 {
     midiEventPacket_t event = {0x0B, 0xB0 | channel, control, value};
     MidiUSB.sendMIDI(event);
     MidiUSB.flush();
 }
 
-void sendMIDI10bit(uint8_t channel, uint8_t control, uint16_t value)
+void receiveCCValuesFromWebsite()
 {
-    midiEventPacket_t event = {0x0B, 0xB0 | channel, control, value >> 3};
-    MidiUSB.sendMIDI(event);
-    MidiUSB.flush();
+    if (Serial.available() > 0)
+    {
+        StaticJsonDocument<200> doc;
+        String jsonString = Serial.readStringUntil('\n');
+        DeserializationError error = deserializeJson(doc, jsonString);
+
+        if (error)
+        {
+            debugPrint("Failed to parse JSON");
+            return;
+        }
+
+        for (int i = 0; i < NUM_FADERS; i++)
+        {
+            if (doc["cc"][i].is<int>())
+            {
+                ccNumbers[i] = doc["cc"][i];
+                debugPrint("Updated CC values");
+            }
+        }
+
+        saveCCValuesToEEPROM(); // Save updated CC values to EEPROM
+    }
 }
 
-void sendMIDI14bit(uint8_t channel, uint8_t control, uint16_t value)
+void saveCCValuesToEEPROM()
 {
-    midiEventPacket_t event = {0x0B, 0xB0 | channel, control, value >> 7};
-    MidiUSB.sendMIDI(event);
-    MidiUSB.flush();
+    for (int i = 0; i < NUM_FADERS; i++)
+    {
+        EEPROM.update(i, ccNumbers[i]); // Save each CC value to EEPROM
+    }
+    if (ENABLE_DEBUG)
+    {
+        debugPrint("CC values saved to EEPROM");
+    }
+}
+
+void loadCCValuesFromEEPROM()
+{
+    for (int i = 0; i < NUM_FADERS; i++)
+    {
+        uint8_t value = EEPROM.read(i); // Read each CC value from EEPROM
+        if (value >= 1 && value <= 127) // Validate the value
+        {
+            ccNumbers[i] = value;
+        }
+        else
+        {
+            ccNumbers[i] = i + 1; // Default to {1, 2, 3} if invalid
+        }
+    }
+    if (ENABLE_DEBUG)
+    {
+        debugPrint("CC values loaded from EEPROM");
+    }
 }

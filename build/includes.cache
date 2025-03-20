@@ -16,13 +16,18 @@
   },
   {
     "Sourcefile": "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\build\\sketch\\XUL.ino.cpp",
+    "Include": "MIDIUSB.h",
+    "Includepath": "C:\\Users\\Gregor\\Documents\\Arduino\\libraries\\MIDIUSB\\src"
+  },
+  {
+    "Sourcefile": "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\build\\sketch\\XUL.ino.cpp",
     "Include": "ArduinoJson.h",
     "Includepath": "C:\\Users\\Gregor\\Documents\\Arduino\\libraries\\ArduinoJson\\src"
   },
   {
     "Sourcefile": "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\build\\sketch\\XUL.ino.cpp",
-    "Include": "MIDIUSB.h",
-    "Includepath": "C:\\Users\\Gregor\\Documents\\Arduino\\libraries\\MIDIUSB\\src"
+    "Include": "EEPROM.h",
+    "Includepath": "C:\\Users\\Gregor\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.6\\libraries\\EEPROM\\src"
   },
   {
     "Sourcefile": "C:\\Users\\Gregor\\Desktop\\Nace\\Programiranje\\VS Code - git\\XUL\\build\\sketch\\XUL.ino.cpp",
