@@ -6,13 +6,13 @@
 USBRename usbRename = USBRename("X.U.L", "NeoArchCat7", "0001");
 
 #define NUM_FADERS 3
-#define RAW_THRESHOLD 4      // Minimum raw value change to update MIDI
-#define SMOOTHING_FACTOR 0.2 // Smoothing factor for analog readings
+#define RAW_THRESHOLD 4      // Threshold for raw value change
+#define SMOOTHING_FACTOR 0.2 // Smoothing factor for raw values
 
 const uint8_t faderPins[NUM_FADERS] = {A10, A9, A8};
 uint8_t ccNumbers[NUM_FADERS] = {1, 2, 3};
 uint8_t lastValues[NUM_FADERS] = {0};
-float smoothedRawValues[NUM_FADERS] = {0}; // Store smoothed raw values
+float smoothedRawValues[NUM_FADERS] = {0}; // Smoothed raw values
 
 void sendMIDI(uint8_t channel, uint8_t control, uint8_t value);
 void receiveCCValuesFromWebsite();
@@ -26,7 +26,7 @@ void setup()
     for (int i = 0; i < NUM_FADERS; i++)
     {
         pinMode(faderPins[i], INPUT);
-        smoothedRawValues[i] = analogRead(faderPins[i]); // Initialize smoothed values
+        smoothedRawValues[i] = analogRead(faderPins[i]);
     }
 }
 

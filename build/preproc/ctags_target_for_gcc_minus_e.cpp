@@ -41,7 +41,7 @@ void loop()
         uint16_t rawValue = analogRead(faderPins[i]);
         smoothedRawValues[i] = (0.2 /* Smoothing factor for analog readings*/ * rawValue) + ((1 - 0.2 /* Smoothing factor for analog readings*/) * smoothedRawValues[i]);
 
-        // Map smoothed raw values (0–1023) to MIDI range (0–127)
+        // Map smoothed raw values to MIDI values
         uint8_t midiValue = (uint16_t)smoothedRawValues[i] / 8;
 
         // Send MIDI only if the MIDI value has changed
