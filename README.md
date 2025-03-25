@@ -1,3 +1,3 @@
-X.U.L is a long worked project of mine. It is a MIDI controller for my friend. Its very basic - it just has 3 faders and an arduino pro micro for its brains. I also developed a PWA website to upload the preffered MIDI CC values.
+X.U.L is a long worked project of mine. It is a MIDI controller for my friend. Its very basic - it just has 3 faders and an arduino pro micro for its brains. I also developed a PWA website to upload the preffered MIDI CC values (Github Pages: https://neoarchcat7.github.io/XUL-config/).
 
 NeoArchCat7
