@@ -10,13 +10,12 @@ USBRename usbRename = USBRename("X.U.L", "NeoArchCat7", "0001");
 
 
 
-const uint8_t faderPins[3] = {A10, A9, A8}; // Store in flash memory (const)
+const uint8_t faderPins[3] = {A10, A9, A8};
 uint8_t ccNumbers[3] = {1, 2, 3};
 uint8_t lastValues[3] = {0};
-uint16_t lastRawValues[3] = {0}; // Store last raw values for threshold comparison
+float smoothedRawValues[3] = {0}; // Store smoothed raw values
 
 void sendMIDI(uint8_t channel, uint8_t control, uint8_t value);
-void debugPrint(const char *message);
 void receiveCCValuesFromWebsite();
 void saveCCValuesToEEPROM();
 void loadCCValuesFromEEPROM();
@@ -28,11 +27,7 @@ void setup()
     for (int i = 0; i < 3; i++)
     {
         pinMode(faderPins[i], 0x0);
-    }
-
-    if (true)
-    {
-        Serial.begin(9600);
+        smoothedRawValues[i] = analogRead(faderPins[i]); // Initialize smoothed values
     }
 }
 
@@ -42,40 +37,19 @@ void loop()
 
     for (int i = 0; i < 3; i++)
     {
+        // Read and smooth the raw analog value
         uint16_t rawValue = analogRead(faderPins[i]);
+        smoothedRawValues[i] = (0.2 /* Smoothing factor for analog readings*/ * rawValue) + ((1 - 0.2 /* Smoothing factor for analog readings*/) * smoothedRawValues[i]);
 
-        // Check if the raw value has changed significantly
-        if (((rawValue - lastRawValues[i])>0?(rawValue - lastRawValues[i]):-(rawValue - lastRawValues[i])) >= 4 /* Minimum raw value change to update MIDI*/)
+        // Map smoothed raw values (0–1023) to MIDI range (0–127)
+        uint8_t midiValue = (uint16_t)smoothedRawValues[i] / 8;
+
+        // Send MIDI only if the MIDI value has changed
+        if (midiValue != lastValues[i])
         {
-            lastRawValues[i] = rawValue; // Update the last raw value
-
-            // Map raw values (0–1023) to MIDI range (0–127) using integer division
-            uint8_t midiValue = rawValue / 8;
-
-            // Send MIDI only if the MIDI value has changed
-            if (midiValue != lastValues[i])
-            {
-                sendMIDI(0, ccNumbers[i], midiValue);
-
-                if (true)
-                {
-                    char debugMsg[100];
-                    sprintf(debugMsg, "Fader %d: Raw = %d, MIDI = %d, CC = %d",
-                            i + 1, rawValue, midiValue, ccNumbers[i]);
-                    debugPrint(debugMsg);
-                }
-
-                lastValues[i] = midiValue;
-            }
+            sendMIDI(0, ccNumbers[i], midiValue);
+            lastValues[i] = midiValue;
         }
-    }
-}
-
-void debugPrint(const char *message)
-{
-    if (true)
-    {
-        Serial.println(message);
     }
 }
 
@@ -96,7 +70,6 @@ void receiveCCValuesFromWebsite()
 
         if (error)
         {
-            debugPrint("Failed to parse JSON");
             return;
         }
 
@@ -109,7 +82,6 @@ void receiveCCValuesFromWebsite()
                 {
                     ccNumbers[i] = newCC;
                     saveCCValuesToEEPROM(); // Save updated CC values to EEPROM
-                    debugPrint("Updated CC values and saved to EEPROM");
                 }
             }
         }
@@ -120,12 +92,7 @@ void saveCCValuesToEEPROM()
 {
     for (int i = 0; i < 3; i++)
     {
-        EEPROM.update(i, ccNumbers[i]); // Save each CC value to EEPROM
-    }
-
-    if (true)
-    {
-        debugPrint("CC values saved to EEPROM");
+        EEPROM.update(i, ccNumbers[i]);
     }
 }
 
@@ -143,10 +110,5 @@ void loadCCValuesFromEEPROM()
         {
             ccNumbers[i] = i + 1; // Default to {1, 2, 3} if invalid
         }
-    }
-
-    if (true)
-    {
-        debugPrint("CC values loaded from EEPROM");
     }
 }
